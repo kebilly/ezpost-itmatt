@@ -1,0 +1,132 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id               String           @id @default(cuid())
+  name             String?
+  email            String           @unique
+  passwordHash     String
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  senderProfiles   SenderProfile[]
+  contacts         Contact[]
+  shipments        Shipment[]
+}
+
+model SenderProfile {
+  id        String     @id @default(cuid())
+  userId    String
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  company   String?
+  address1  String
+  address2  String?
+  city      String
+  postal    String
+  country   String
+  phone     String
+  email     String?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  shipments Shipment[]
+}
+
+model Contact {
+  id        String     @id @default(cuid())
+  userId    String
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  company   String?
+  address1  String
+  address2  String?
+  city      String
+  state     String?
+  postal    String
+  country   String
+  phone     String
+  email     String?
+  taxId     String?
+  note      String?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  shipments Shipment[]
+}
+
+enum MailType {
+  EMS
+  PARCEL
+  E_PACKET
+  REGISTERED_SMALL_PACKET
+  SMALL_PACKET
+}
+
+enum ContentCategory {
+  GIFT
+  DOCUMENTS
+  SALE_GOODS
+  COMMERCIAL_SAMPLE
+  RETURNED_GOODS
+  OTHER
+}
+
+enum ShipmentStatus {
+  DRAFT
+  QUEUED
+  SUBMITTING
+  SUBMITTED
+  FAILED
+}
+
+model Shipment {
+  id              String         @id @default(cuid())
+  userId          String
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  senderProfileId String
+  senderProfile   SenderProfile  @relation(fields: [senderProfileId], references: [id])
+  contactId       String
+  contact         Contact        @relation(fields: [contactId], references: [id])
+  mailType        MailType
+  status          ShipmentStatus  @default(DRAFT)
+  contentType     ContentCategory?
+  contractAccount String?
+  currency        String          @default("TWD")
+  totalWeight     Float?
+  lengthCm        Float?
+  widthCm         Float?
+  heightCm        Float?
+  itmattTrackingNo String?
+  qrImagePath     String?
+  submissionLog   String?         @db.Text
+  lineUserId      String?
+  items           ShipmentItem[]
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+}
+
+/// LINE 對話填單的狀態機：每個 LINE 用戶一列，記錄目前問到哪一步與暫存的欄位草稿
+model LineSession {
+  id         String   @id @default(cuid())
+  lineUserId String   @unique
+  step       String   @default("START")
+  draft      Json     @default("{}")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model ShipmentItem {
+  id             String   @id @default(cuid())
+  shipmentId     String
+  shipment       Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  description    String
+  quantity       Int      @default(1)
+  unitValue      Float
+  weight         Float
+  originCountry  String
+  hsCode         String?
+  createdAt      DateTime @default(now())
+}
