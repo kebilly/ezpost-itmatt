@@ -114,6 +114,7 @@ model LineSession {
   lineUserId String   @unique
   step       String   @default("START")
   draft      Json     @default("{}")
+  consented  Boolean  @default(false)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 }

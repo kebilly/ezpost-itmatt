@@ -44,4 +44,9 @@ next-env.d.ts
 
 # local dev artifacts
 dev.log
+cf.log
+*.log
 /.claude/
+
+# 真實寄件 QR（內含真人報關個資，勿公開）；作品展示請改放去識別化截圖
+docs/demo/*.png

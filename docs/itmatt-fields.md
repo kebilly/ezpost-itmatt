@@ -96,7 +96,8 @@ e小包為基準。EMS(快捷)、包裹、掛號函件、平常小包的差異�
 ✅ 已移除（精簡 scaffold，走非會員免登入）：
 - `ItmattCredential` model + `User.itmattCredential` 關聯（table 已 drop）
 - `src/lib/crypto.ts`、`/settings/itmatt-account` 頁與 API、導覽連結、`proxy.ts` 的 `/settings` 保護路徑、`.env` 的 `CREDENTIAL_ENC_KEY`
-- `src/lib/itmatt/{types,selectors,client,runner}.ts` 已改寫為非會員流程（開始製作→選種類→注意事項同意→填單→確定→截圖 QR 存 `public/qr/{id}.png`）；選擇器仍為 TODO 佔位，待對照線上 DOM
+- `src/lib/itmatt/{types,selectors,client,runner}.ts` 已改寫為非會員流程（開始製作→選種類→注意事項同意→填單→確定→取 QR 存 `public/qr/{id}.png`）
+- ✅ **選擇器已實測**（2026-07 對照線上 DOM）：欄位 id 見 `selectors.ts`；QR 為送出後頁面的 `img[src^='data:image']`（base64 解碼存檔）、郵件編號以 regex 從 body 擷取。實測產出真實交寄單 `LX806576725TW`，QR 樣本存於 `docs/demo/`
 
 ✅ 新欄位已接上 CRUD 表單/API（2026-07，端到端驗證通過）：
 - 收件人表單：州/省/地區(state)、稅務識別碼(taxId)

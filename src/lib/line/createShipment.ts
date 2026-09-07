@@ -28,13 +28,23 @@ export async function createShipmentFromDraft(
 ): Promise<string> {
   const userId = await resolveMerchantUserId();
 
-  const sender = await prisma.senderProfile.findFirst({
-    where: { userId },
-    orderBy: { createdAt: "asc" },
-  });
-  if (!sender) {
-    throw new Error("商家尚未設定寄件人資料，請先於後台新增一筆寄件人");
+  // 寄件人：一律使用客人自行輸入的寄件人資料（必填）
+  const ds = draft.sender ?? {};
+  if (!(ds.name && ds.address1 && ds.city && ds.postal && ds.phone)) {
+    throw new Error("缺少寄件人資料");
   }
+  const created = await prisma.senderProfile.create({
+    data: {
+      userId,
+      name: ds.name,
+      address1: ds.address1,
+      city: ds.city,
+      postal: ds.postal,
+      country: "TW",
+      phone: ds.phone,
+    },
+  });
+  const senderId = created.id;
 
   const r = draft.recipient ?? {};
   const contact = await prisma.contact.create({
@@ -54,7 +64,7 @@ export async function createShipmentFromDraft(
     data: {
       userId,
       lineUserId,
-      senderProfileId: sender.id,
+      senderProfileId: senderId,
       contactId: contact.id,
       mailType: (draft.mailType as MailType) ?? MailType.PARCEL,
       contentType: draft.contentType

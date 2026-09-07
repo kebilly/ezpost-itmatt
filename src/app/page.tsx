@@ -45,8 +45,7 @@ export default async function HomePage() {
             國際郵件寄件資料管理
           </h1>
           <p className="text-xl text-gray-500 max-w-2xl mx-auto">
-            管理寄件人、收件人與報關明細，自動化送入中華郵政 EZPost
-            國際郵件電子通關資訊系統（ITMATT）
+            管理寄件人、收件人與報關明細，自動化產生國際郵件交寄單與 QR
           </p>
           {!session && (
             <div className="mt-8 flex gap-4 justify-center">
@@ -78,7 +77,7 @@ export default async function HomePage() {
       </main>
 
       <footer className="text-center py-8 text-sm text-gray-400 border-t border-gray-100 mt-8">
-        內部工具 · 非中華郵政官方系統
+        內部工具 · 非官方郵政系統
       </footer>
     </div>
   );

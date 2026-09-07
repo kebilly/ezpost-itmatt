@@ -26,14 +26,16 @@ export const STEPS = {
   ASK_ITEM_ORIGIN: "ASK_ITEM_ORIGIN",
   ASK_MORE_ITEMS: "ASK_MORE_ITEMS",
   CONFIRM: "CONFIRM",
+  /** LLM 對話模式（aiConversation.ts 使用）：狀態存在 draft，不走固定腳本 */
+  AI: "AI",
 } as const;
 
 export const MAIL_TYPES: Record<string, string> = {
-  國際快捷: "EMS",
-  包裹: "PARCEL",
-  e小包: "E_PACKET",
-  掛號小包: "REGISTERED_SMALL_PACKET",
-  平常小包: "SMALL_PACKET",
+  "國際快捷 (EMS)": "EMS",
+  "國際包裹 (Parcel)": "PARCEL",
+  "國際e小包 (ePacket)": "E_PACKET",
+  "國際掛號函件": "REGISTERED_SMALL_PACKET",
+  "國際平常小包": "SMALL_PACKET",
 };
 
 export const CONTENT_TYPES: Record<string, string> = {
@@ -63,9 +65,19 @@ export type RecipientDraft = {
   phone?: string;
 };
 
+/** 寄件人（選填）：客人若提供自己的寄件人資料就用它，否則用商家預設 */
+export type SenderDraft = {
+  name?: string;
+  postal?: string;
+  address1?: string;
+  city?: string;
+  phone?: string;
+};
+
 export type Draft = {
   mailType?: string;
   contentType?: string;
+  sender?: SenderDraft;
   recipient?: RecipientDraft;
   totalWeight?: number;
   lengthCm?: number;
@@ -77,6 +89,51 @@ export type Draft = {
 
 export type QuickReply = { label: string; text: string };
 export type BotMessage = { text: string; quickReplies?: QuickReply[] };
+
+/** 郵件種類代碼 → 中文名稱（注意事項標題用） */
+const MAIL_LABEL: Record<string, string> = {
+  EMS: "國際快捷郵件",
+  PARCEL: "國際包裹",
+  E_PACKET: "國際e小包",
+  REGISTERED_SMALL_PACKET: "國際掛號函件",
+  SMALL_PACKET: "國際平常小包",
+};
+
+const NOTICE_BODY =
+  "1. 交寄資料請以英文或寄達國通用語言填寫（中文僅限日本、香港、澳門）。\n" +
+  "2. 內容物須據實、清楚、分類申報；不實或含糊申報可能導致郵件遭寄達國海關沒收或退回。\n" +
+  "3. 不得交寄危險物品或各國禁寄物品，違者將依相關法令處罰。\n" +
+  "4. 進口關稅由收件人負擔；如未符寄達國規定遭退運，郵資不退還。\n" +
+  "5. 重量與尺寸限制依本類郵件規定辦理。";
+
+/**
+ * 依郵件種類產生對應的注意事項（對應 ITMATT 官網「交寄○○注意事項」的告知同意流程）。
+ * 選定郵件種類後才顯示，使用者同意後才開始填其餘資料。
+ */
+export function noticeFor(mailType: string): string {
+  const label = MAIL_LABEL[mailType] ?? "國際郵件";
+  const extra =
+    mailType === "E_PACKET"
+      ? "\n6. 本類每件重量不得逾 2 公斤；單邊最長 60 公分、長寬高合計 90 公分為限。"
+      : "";
+  return (
+    `📮 交寄${label}注意事項（請詳閱）\n\n` +
+    NOTICE_BODY +
+    extra +
+    "\n\n若您已閱讀並同意上述內容，請回覆「我同意」繼續填單。"
+  );
+}
+
+/** 郵件種類快速選單 */
+export const MAIL_TYPE_QR: QuickReply[] = Object.keys(MAIL_TYPES).map((l) => ({
+  label: l,
+  text: l,
+}));
+
+/** 判斷使用者訊息是否為同意 */
+export function isAgreement(text: string): boolean {
+  return ["我同意", "同意", "接受", "yes", "y", "ok", "好", "是"].includes(text.trim().toLowerCase());
+}
 
 export type TurnResult = {
   step: string;
