@@ -104,7 +104,7 @@ async function handleEvent(event: LineMessageEvent): Promise<void> {
     } else {
       await save(userId, STEPS.ASK_RECIPIENT_NAME, draft, true);
       await replyMessages(replyToken, [
-        { text: "好的，我們開始 🙂 收件人姓名？（請用英文，或寄達國語言）" },
+        { text: "好的，我們開始。收件人姓名？（請用英文，或寄達國語言）" },
       ]);
     }
     return;
@@ -123,7 +123,7 @@ async function handleEvent(event: LineMessageEvent): Promise<void> {
     } catch (err) {
       const message = err instanceof Error ? err.message : "建立寄件單失敗";
       await save(userId, STEPS.START, {}, false);
-      await replyMessages(replyToken, [{ text: `⚠️ ${message}\n請稍後再試，或聯繫商家。` }]);
+      await replyMessages(replyToken, [{ text: `${message}\n請稍後再試，或聯繫商家。` }]);
       return;
     }
   }

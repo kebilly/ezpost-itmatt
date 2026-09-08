@@ -158,7 +158,7 @@ export async function aiNextTurn(
     return {
       step: STEPS.START,
       draft: {},
-      messages: [{ text: "已取消，隨時傳訊息即可重新開始 🙂" }],
+      messages: [{ text: "已取消，隨時傳訊息即可重新開始。" }],
       cancelled: true,
     };
   }

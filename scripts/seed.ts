@@ -40,7 +40,7 @@ async function main() {
   } else {
     console.log(`已有 ${senderCount} 筆寄件人，略過`);
   }
-  console.log("✅ seed 完成");
+  console.log("seed 完成");
 }
 
 main()

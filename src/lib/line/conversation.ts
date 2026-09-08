@@ -117,7 +117,7 @@ export function noticeFor(mailType: string): string {
       ? "\n6. 本類每件重量不得逾 2 公斤；單邊最長 60 公分、長寬高合計 90 公分為限。"
       : "";
   return (
-    `📮 交寄${label}注意事項（請詳閱）\n\n` +
+    `交寄${label}注意事項（請詳閱）\n\n` +
     NOTICE_BODY +
     extra +
     "\n\n若您已閱讀並同意上述內容，請回覆「我同意」繼續填單。"
@@ -175,7 +175,7 @@ export function nextTurn(step: string, draft: Draft, rawText: string): TurnResul
         draft: {},
         messages: [
           {
-            text: "您好！我來協助您填寫國際郵件交寄單 📮\n請問要寄哪一種郵件？",
+            text: "您好！我來協助您填寫國際郵件交寄單。\n請問要寄哪一種郵件？",
             quickReplies: qr(Object.keys(MAIL_TYPES)),
           },
         ],
@@ -368,7 +368,7 @@ export function nextTurn(step: string, draft: Draft, rawText: string): TurnResul
         return {
           step: STEPS.START,
           draft: d,
-          messages: [{ text: "收到！正在為您產生交寄條碼，稍候會把 QR code 傳給您 ⏳" }],
+          messages: [{ text: "收到！正在為您產生交寄條碼，稍候會把 QR code 傳給您。" }],
           complete: true,
         };
       }

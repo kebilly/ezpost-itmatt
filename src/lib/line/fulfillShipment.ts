@@ -42,7 +42,7 @@ export async function fulfillAndNotify(shipmentId: string): Promise<void> {
     }
 
     if (!qrPublicPath) {
-      await pushMessages(lineUserId, [{ text: "⚠️ 產生交寄單失敗，請稍後再試或聯繫商家。" }]);
+      await pushMessages(lineUserId, [{ text: "產生交寄單失敗，請稍後再試或聯繫商家。" }]);
       return;
     }
     if (!PUBLIC_BASE_URL) {
@@ -55,7 +55,7 @@ export async function fulfillAndNotify(shipmentId: string): Promise<void> {
     await pushMessages(lineUserId, [
       {
         text:
-          `✅ 交寄單完成！${MODE !== "live" ? "（測試模式：下方為示範 QR）" : ""}\n` +
+          `交寄單完成！${MODE !== "live" ? "（測試模式：下方為示範 QR）" : ""}\n` +
           `請到郵局掃描此 QR 列印交寄。`,
       },
     ]);
@@ -63,7 +63,7 @@ export async function fulfillAndNotify(shipmentId: string): Promise<void> {
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("fulfill error:", msg);
-    await pushMessages(lineUserId, [{ text: `⚠️ 送件失敗：${msg}` }]).catch(() => {});
+    await pushMessages(lineUserId, [{ text: `送件失敗：${msg}` }]).catch(() => {});
     await prisma.shipment
       .update({ where: { id: shipmentId }, data: { status: "FAILED", submissionLog: msg } })
       .catch(() => {});

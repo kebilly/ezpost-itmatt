@@ -6,7 +6,7 @@
  * 選擇器已於 2026-07 對照 https://ezpost.post.gov.tw/itmatt/ 線上 DOM 實測取得（以國際 e小包驗證）。
  * 欄位語意與必填規則見 docs/itmatt-fields.md。
  *
- * ⚠️ 地址欄位對應有玄機（實測）：
+ * 地址欄位對應有玄機（實測）：
  *   寄件人：address1 → #txtSEADD_OTHER2（街道門牌）、city → #txtSEADD_OTHER1（縣市）
  *   收件人：address1 → #txtREADD_OTHER3（完整地址）、city → #txtREADD_OTHER2、state → #txtREADD_OTHER1
  *   寄達國 #selectREADD_COUNTRY 的 option value 為國名英文字串（例："Australia"）。
