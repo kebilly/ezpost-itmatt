@@ -1,58 +1,68 @@
 # EZPOST ITMATT 智慧填單系統
 
-> 用一段 **LINE 對話**取代繁瑣的國際郵件報關表單，後端以**瀏覽器自動化**代填中華郵政 ITMATT 並回傳交寄 QR Code，民眾到郵局掃碼即可列印交寄。
+用一段 LINE 對話取代繁瑣的國際郵件報關表單。系統以 LLM 聽懂使用者的自然語言、抽取報關欄位，經確定性驗證後由瀏覽器自動化代填官方 ITMATT 國際郵件報關系統，並將產生的交寄 QR Code 回傳至 LINE，使用者到郵局掃碼即可列印交寄。
 
-一個從**需求釐清 → 系統設計 → 端到端落地**完整走過的個人專案，展示把真實世界的高摩擦流程，透過對話式介面與自動化重新設計的能力。
+本專案為個人作品，與任何郵政機構無隸屬關係；ITMATT 為公開的國際郵件電子通關服務。
 
-> ⚠️ 本專案為個人作品，非中華郵政官方系統；ITMATT 為公開的國際郵件電子通關服務。
+## 專案動機
 
----
+國際郵件報關（ITMATT）要求寄件人逐欄填寫寄件人、收件人與每一項物品的報關明細，且須以英文、遵守各欄位的字元與格式限制。對非專業寄件者而言存在幾個痛點：
 
-## 為什麼做（Problem）
+- 欄位繁雜：寄達國、州省、郵遞區號、HS code、原產國、內容分類等。
+- 低容錯：報關資料填錯，郵件可能在寄達國海關被退回甚至沒收。
+- 對一般消費者是高摩擦、易出錯的體驗。
 
-中華郵政 **ITMATT**（國際郵件電子通關資訊系統）要求寄件人逐欄填寫寄件人／收件人／每一項物品的報關明細，且須以英文、遵守各欄位字元限制。對非專業寄件者而言：
+目標是把入口從「一張複雜的多頁表單」改成「一段自然對話」，由系統負責理解、彙整、代填與把關。
 
-- 欄位繁雜（寄達國、州省、郵遞區號、HS code、原產國、內容分類…）
-- **低容錯**：報關資料填錯，郵件會在寄達國海關被退回甚至沒收
-- 對一般消費者是「高摩擦、易出錯」的體驗
-
-## 怎麼設計（Solution）
-
-把入口從「一張複雜的表單」改成「一段對話」：
+## 系統流程
 
 ```
-LINE 客人 ──對話填單──▶ 對話狀態機 ──▶ Playwright 自動填 ITMATT（非會員）──▶ 擷取交寄 QR ──▶ 回傳 LINE ──▶ 郵局掃碼列印
+LINE 使用者
+   │  自然語言對話
+   ▼
+LLM 欄位抽取（Claude 結構化輸出）
+   │
+   ▼
+確定性驗證（欄位齊全且合法才放行）
+   │
+   ▼
+Playwright 自動填 ITMATT（非會員流程）→ 送出
+   │
+   ▼
+擷取交寄 QR / 郵件編號 → 回傳 LINE → 郵局掃碼列印
 ```
 
-1. 使用者在 LINE 上被**逐步引導**回答（郵件種類、收件人、內容類別、重量尺寸、逐項物品）
-2. 系統彙整後，用瀏覽器自動化走 ITMATT **非會員流程**代為填單、送出
-3. 擷取產生的交寄條碼／QR，推回使用者的 LINE
-4. 使用者到有 EZPost 設備的郵局掃碼列印即可交寄
+1. 使用者選擇郵件種類後，先閱讀該類別的注意事項並回覆同意，才進入資料蒐集。
+2. 使用者以自然語言回答，LLM 逐步抽取寄件人、收件人、內容類別、重量尺寸與逐項物品。
+3. 送出前由確定性驗證層檢查所有必填欄位；通過後才以瀏覽器自動化走 ITMATT 非會員流程代填、送出。
+4. 擷取產生的交寄 QR 與郵件編號，推回使用者的 LINE。
 
 ## 系統架構
 
 ```mermaid
 flowchart LR
     U["LINE 使用者"] -- "訊息" --> W["Webhook<br/>/api/line/webhook<br/>(簽章驗證)"]
-    W --> SM["對話狀態機<br/>conversation.ts<br/>(純函式)"]
-    SM -- "暫存進度" --> DB[("PostgreSQL<br/>LineSession / Shipment")]
-    SM -- "完成" --> CS["createShipmentFromDraft<br/>(單一商家帳號 + lineUserId)"]
+    W --> AI["LLM 對話層<br/>aiConversation.ts<br/>(Claude 結構化輸出)"]
+    AI --> GUARD["確定性驗證<br/>missingRequired<br/>(報關資料把關)"]
+    W --> SM["對話狀態機<br/>conversation.ts"]
+    GUARD -- "暫存進度" --> DB[("PostgreSQL<br/>LineSession / Shipment")]
+    GUARD -- "資料齊全" --> CS["createShipmentFromDraft<br/>(商家帳號 + lineUserId)"]
     CS --> DB
     CS --> RUN["Playwright Runner<br/>runItmattSubmission"]
-    RUN -- "非會員流程代填" --> ITMATT["中華郵政 ITMATT 網站"]
-    ITMATT -- "交寄 QR / 條碼" --> RUN
+    RUN -- "非會員流程代填" --> ITMATT["官方 ITMATT 報關系統"]
+    ITMATT -- "交寄 QR / 郵件編號" --> RUN
     RUN -- "pushImage(QR)" --> U
     ADMIN["商家後台<br/>(Next.js + NextAuth)"] --- DB
 ```
 
 ## 關鍵設計決策
 
-> 這幾點展現的是「AI 專案判斷力」——知道**何時該用、何時不該用**某個技術，比盲追流行更重要。
-
-- **刻意不用 LLM 做開放式解析**：報關資料錯一欄就退件。評估「自由文字 + LLM 抽取」在此情境的幻覺與成本風險過高，選擇**確定性的引導式狀態機**確保可靠度；同時把架構留出可插入 LLM 語意槽位填充（slot-filling）的接縫。
-- **走 ITMATT 非會員流程**：實測確認非會員即可產單後，移除了帳密加密、登入自動化與帳號設定頁，大幅簡化系統與資安面。
-- **資料模型對齊法規現實**：實地研究官方登打範例，把 HS code、原產國、內容分類（禮品／銷售品／樣品…）、州省欄位等真實報關欄位建進 schema。詳見 [`docs/itmatt-fields.md`](docs/itmatt-fields.md)。
-- **單一商家帳號 + 記 LINE userId**：所有 LINE 客人的寄件單掛在同一商家帳號下、以 `lineUserId` 標記歸屬，符合「非會員代寄」情境且便於回推訊息。
+- **LLM 理解 + 規則式把關的混合架構**：由 LLM（Claude 結構化輸出）負責聽懂自然語言、抽取欄位，提供友善的對話體驗；但在「送出報關」這個低容錯環節，不讓 LLM 的輸出直接放行，而是加一層確定性驗證（`missingRequired`）攔截不完整或不合法的欄位。此設計兼顧體驗與可靠度，也是本專案的核心工程判斷。
+- **走 ITMATT 非會員流程**：實測確認非會員即可產單後，移除了帳密保管、登入自動化與帳號設定，大幅簡化系統與資安面。
+- **逐郵件種類的注意事項同意**：不同郵件種類有不同的交寄須知，於選定種類後才顯示對應注意事項並要求同意，避免誤填。
+- **資料模型對齊法規現實**：實地研究官方登打範例，把 HS code、原產國、內容分類、州省欄位等真實報關欄位建進 schema。詳見 [`docs/itmatt-fields.md`](docs/itmatt-fields.md)。
+- **單一商家帳號 + 記錄 LINE userId**：所有 LINE 客人的寄件單掛在同一商家帳號下、以 `lineUserId` 標記歸屬，符合非會員代寄情境並便於回推訊息。
+- **test / live 送件模式開關**：以環境變數切換「回傳示範 QR（安全、不實際送出）」與「真實送出」，便於開發驗證與正式運行分離。
 
 ## 技術棧
 
@@ -61,16 +71,17 @@ flowchart LR
 | 前後端 | Next.js 16（App Router）、TypeScript、React |
 | 資料 | Prisma ORM、PostgreSQL |
 | 商家後台認證 | NextAuth v5 |
-| 對話層 | LINE Messaging API（`@line/bot-sdk`）、自研對話狀態機 |
-| 自動化 | Playwright（agentic 瀏覽器任務執行、擷取條碼） |
-| 開發 | Docker（本機 PostgreSQL）、tsx |
+| 對話與理解 | LINE Messaging API（`@line/bot-sdk`）、Claude API（結構化輸出 + zod）、自研對話狀態機 |
+| 自動化 | Playwright（瀏覽器任務執行、擷取交寄 QR） |
+| 開發工具 | tsx |
 
 ## 主要功能
 
-- 🤖 **LINE 引導式對話填單**：快速回覆按鈕、逐欄驗證、多品項迴圈、送出前摘要確認
-- 🧾 **報關欄位完整**：對齊 ITMATT 真實欄位（寄件人／收件人／內容物明細）
-- 🕹️ **瀏覽器自動化代填**：Playwright 走非會員流程並擷取交寄 QR
-- 🗂️ **商家後台**：寄件人／收件人／寄件單 CRUD、寄件單狀態與 QR 檢視
+- LINE 引導式對話填單：LLM 聽懂自然語言、逐欄補問、多品項處理、送出前摘要確認。
+- 逐郵件種類注意事項同意流程。
+- 報關欄位完整：對齊 ITMATT 真實欄位（寄件人、收件人、內容物明細）。
+- 瀏覽器自動化代填：Playwright 走非會員流程、送出並擷取交寄 QR。
+- 商家後台：寄件人、收件人、寄件單的 CRUD 與狀態、QR 檢視。
 
 ## 本機執行
 
@@ -78,19 +89,29 @@ flowchart LR
 # 1. 安裝相依（因 next-auth beta 的 peer 版本，需 legacy-peer-deps）
 npm install --legacy-peer-deps
 
-# 2. 啟動本機 PostgreSQL（Docker）
-docker run -d --name ezpost-pg -e POSTGRES_USER=postgres \
-  -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=ezpost_itmatt \
-  -p 5433:5432 postgres:16
+# 2. 準備本機 PostgreSQL（監聽 5433，資料庫 ezpost_itmatt）
+#    可使用本機安裝的 PostgreSQL 或容器，連線字串填入 .env
 
 # 3. 設定環境變數
-cp .env.example .env   # 依註解填入 DATABASE_URL、LINE 憑證等
+cp .env.example .env   # 依註解填入 DATABASE_URL、LINE 憑證、ANTHROPIC_API_KEY 等
 
-# 4. 建立資料表
+# 4. 建立資料表與示範帳號
 npx prisma db push
+npm run seed
 
-# 5. 啟動
+# 5. 安裝自動化所需的瀏覽器
+npx playwright install chromium
+
+# 6. 啟動
 npm run dev
+```
+
+LINE webhook 需要對外可連的 HTTPS 網址（本機開發可用通道服務轉發）；`PUBLIC_BASE_URL` 需設為該對外網址，LINE 才能取得回傳的 QR 圖片。可先將 `ITMATT_SUBMIT_MODE` 設為 `test` 驗證整體流程，再切換為 `live` 進行真實送單。
+
+也可用終端機直接測試對話：
+
+```bash
+npm run chat
 ```
 
 ## 專案結構
@@ -101,27 +122,25 @@ src/
 │  ├─ (main)/            # 商家後台（dashboard / senders / contacts / shipments）
 │  ├─ api/
 │  │  ├─ line/webhook/   # LINE webhook（簽章驗證 + 事件分派）
-│  │  ├─ senders|contacts|shipments/  # 後台 CRUD API
+│  │  └─ senders|contacts|shipments/  # 後台 CRUD API
 │  └─ (auth)/            # 登入 / 註冊
 ├─ lib/
-│  ├─ line/              # conversation（狀態機）/ client / createShipment
-│  └─ itmatt/            # Playwright 自動化（client / runner / selectors）
-docs/itmatt-fields.md    # ITMATT 報關欄位規格（實測整理）
+│  ├─ line/
+│  │  ├─ conversation.ts     # 對話狀態機（純函式）
+│  │  ├─ aiConversation.ts   # LLM 欄位抽取 + 確定性驗證把關
+│  │  ├─ createShipment.ts   # 由對話 draft 建立寄件單
+│  │  ├─ fulfillShipment.ts  # 送單並回傳 QR 至 LINE
+│  │  └─ client.ts           # LINE API 封裝（簽章 / reply / push）
+│  └─ itmatt/
+│     ├─ runner.ts           # 送單流程編排
+│     ├─ client.ts           # Playwright 自動化
+│     └─ selectors.ts        # ITMATT 頁面選擇器
+docs/itmatt-fields.md         # ITMATT 報關欄位規格（實測整理）
+scripts/                      # seed（示範帳號）/ chat（終端機對話測試）
 ```
 
-## 現況與 Roadmap
+## 現況
 
-**已完成**
-- ✅ 商家後台 CRUD、資料模型對齊 ITMATT 欄位（端到端驗證存取正確）
-- ✅ LINE 對話狀態機（純函式、可單元測試，已模擬完整對話流程驗證）
-- ✅ Webhook 簽章驗證、事件分派、完成時建立寄件單
-- ✅ 非會員自動化框架（流程與擷取 QR 的骨架）
-
-**進行中／待辦**
-- ⏳ 接入真實 LINE channel 憑證與對外 webhook 網址（ngrok / 部署）
-- ⏳ 補齊 `itmatt/selectors.ts` 對照 ITMATT 線上 DOM 的真實選擇器，串通「完成 → 自動送出 → 回傳 QR」全鏈路
-- ⏳ 自動送出的佇列化與重試
-
----
-
-*Built with Next.js, LINE Messaging API, and Playwright.*
+- 端到端流程已完成並通過真實送單驗證：LINE 對話、LLM 欄位抽取、確定性驗證、Playwright 送出、擷取真實交寄 QR 與郵件編號、回傳 LINE。
+- 已以國際快捷（EMS）與國際 e小包完成真實送單驗證。
+- 其餘郵件種類（國際包裹、掛號函件、平常小包）的表單欄位對應為後續擴充項目。

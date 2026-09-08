@@ -7,7 +7,10 @@ import bcrypt from "bcryptjs";
 
 async function main() {
   const email = process.env.MERCHANT_USER_EMAIL || "test@example.com";
-  const password = "password123";
+  const password = process.env.SEED_PASSWORD;
+  if (!password) {
+    throw new Error("請先在 .env 設定 SEED_PASSWORD 再執行 seed");
+  }
 
   const user = await prisma.user.upsert({
     where: { email },
@@ -25,15 +28,15 @@ async function main() {
     await prisma.senderProfile.create({
       data: {
         userId: user.id,
-        name: "Amia Teng",
-        address1: "55, Sec.2, Jinshan S. Rd., Da'an Dist.",
+        name: "Demo Sender",
+        address1: "1, Sec.1, Demo Rd., Demo Dist.",
         city: "Taipei",
-        postal: "106409",
+        postal: "100000",
         country: "TW",
-        phone: "0981480961",
+        phone: "0900000000",
       },
     });
-    console.log("已建立寄件人: Amia Teng");
+    console.log("已建立寄件人: Demo Sender");
   } else {
     console.log(`已有 ${senderCount} 筆寄件人，略過`);
   }
